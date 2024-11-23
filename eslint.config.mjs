@@ -9,12 +9,12 @@ export default [
   { languageOptions: { globals: globals.browser } },
   {
     rules: {
-      eqeqeq: 'off',
       'no-unused-vars': 'error',
+      eqeqeq: 'off',
       'no-unused-expressions': 'error',
       'prefer-const': ['error', { ignoreReadBeforeAssign: true }],
       'no-console': 'warn',
-      'no-undef': 'warn', //not working
+      'no-undef': 'error', //not working
     },
   },
   {

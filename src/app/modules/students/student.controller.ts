@@ -17,14 +17,14 @@ const createStudent = async (req: Request, res: Response) => {
         message: 'Student is Created',
         data: result,
       });
-    } catch (zodError) {
+    } catch (zodError: unknown) {
       res.status(422).json({
         success: false,
         message: 'Validation failed',
-        data: zodError,
+        data: zodError instanceof Error ? zodError.message : zodError,
       });
     }
-  } catch (Error) {
+  } catch (Error: unknown) {
     res.status(500).json({
       success: false,
       message: 'An error occurred while creating a student',
@@ -75,9 +75,36 @@ const getSingleStudent = async (req: Request, res: Response) => {
     });
   }
 };
+//delete
+const deleteStudent = async (req: Request, res: Response) => {
+  const { studentId } = req.params;
 
+  try {
+    const findStudent = await StudentServices.getSingleStudentFromDB(studentId);
+    if (!findStudent) {
+      res.status(404).json({
+        success: false,
+        message: 'Student not Found',
+      });
+      return;
+    }
+    const result = await StudentServices.deleteStudentFromDB(studentId);
+    res.status(200).json({
+      success: true,
+      message: 'Successfully deleted Student',
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Something went wrong Deleting a Student',
+      data: error,
+    });
+  }
+};
 export const StudentControllers = {
   createStudent,
   getAllStudent,
   getSingleStudent,
+  deleteStudent,
 };

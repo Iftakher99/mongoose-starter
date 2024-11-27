@@ -1,10 +1,13 @@
+import bcrypt from 'bcrypt';
 import { Schema, model } from 'mongoose';
 import {
-  Guardian,
-  LocalGuardian,
-  Student,
-  UserName,
+  StudentModel,
+  TGuardian,
+  TLocalGuardian,
+  TStudent,
+  TUserName,
 } from './students.interface';
+import config from '../../config';
 
 const bangladeshiPhoneRegex = /^(?:\+88)?01[3-9]\d{8}$/;
 const singleWordRegex = /^[a-zA-Z]+$/;
@@ -13,7 +16,7 @@ const toPascalCase = (value: string) => {
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 };
 
-const userNameSchema = new Schema<UserName>({
+const userNameSchema = new Schema<TUserName>({
   firstName: {
     type: String,
     trim: true,
@@ -45,7 +48,7 @@ const userNameSchema = new Schema<UserName>({
   },
 });
 
-const guardianSchema = new Schema<Guardian>({
+const guardianSchema = new Schema<TGuardian>({
   fatherName: {
     type: String,
     trim: true,
@@ -106,7 +109,7 @@ const guardianSchema = new Schema<Guardian>({
   },
 });
 
-const localGuardianSchema = new Schema<LocalGuardian>({
+const localGuardianSchema = new Schema<TLocalGuardian>({
   name: {
     type: String,
     trim: true,
@@ -143,13 +146,17 @@ const localGuardianSchema = new Schema<LocalGuardian>({
   },
 });
 
-const studentSchema = new Schema<Student>(
+const studentSchema = new Schema<TStudent, StudentModel>(
   {
     id: {
       type: String,
       trim: true,
       required: [true, 'Student ID is required.'],
       unique: true,
+    },
+    password: {
+      type: String,
+      required: [true, 'Password is required'],
     },
     name: {
       type: userNameSchema,
@@ -226,10 +233,63 @@ const studentSchema = new Schema<Student>(
       default: 'active',
       required: true,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
+    toJSON: {
+      virtuals: true,
+    },
   },
 );
+//virtual
+studentSchema.virtual('fullname').get(function () {
+  return this.name.firstName + ' ' + this.name.lastName;
+});
 
-export const StudentModel = model<Student>('Student', studentSchema);
+//using pre hook
+studentSchema.pre('save', async function (next) {
+  //Hashing password
+  const user = this;
+  user.password = await bcrypt.hash(
+    user.password,
+    Number(config.bcrypt_salt_round),
+  );
+  next();
+});
+// using post hook
+studentSchema.post('save', async function (doc, next) {
+  doc.password = '';
+  next();
+});
+
+//Query Middleware
+studentSchema.pre('find', function (next) {
+  this.find({ isDeleted: { $ne: true } });
+  next();
+});
+studentSchema.pre('findOne', function (next) {
+  this.find({ isDeleted: { $ne: true } });
+  next();
+});
+
+studentSchema.pre('aggregate', function (next) {
+  this.pipeline().unshift({ $match: { isDeleted: { $ne: true } } });
+  next();
+});
+
+//creating a custom static method
+studentSchema.statics.isUserExists = async function (id: string) {
+  const existingUser = await Student.findOne({ id });
+  return existingUser;
+};
+
+// studentSchema.methods.isUserExists = async function (id: string) {
+//   const existingUser = await Student.findOne({ id });
+//   return existingUser;
+// };
+
+export const Student = model<TStudent, StudentModel>('Student', studentSchema);

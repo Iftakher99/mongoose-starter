@@ -1,4 +1,3 @@
-import bcrypt from 'bcrypt';
 import { Schema, model } from 'mongoose';
 import {
   StudentModel,
@@ -7,7 +6,6 @@ import {
   TStudent,
   TUserName,
 } from './students.interface';
-import config from '../../config';
 
 const bangladeshiPhoneRegex = /^(?:\+88)?01[3-9]\d{8}$/;
 const singleWordRegex = /^[a-zA-Z]+$/;
@@ -154,10 +152,13 @@ const studentSchema = new Schema<TStudent, StudentModel>(
       required: [true, 'Student ID is required.'],
       unique: true,
     },
-    password: {
-      type: String,
-      required: [true, 'Password is required'],
+    user: {
+      type: Schema.Types.ObjectId,
+      required: [true, 'User ID is required.'],
+      unique: true,
+      ref: 'User',
     },
+
     name: {
       type: userNameSchema,
       required: [true, 'Name details are required.'],
@@ -168,7 +169,7 @@ const studentSchema = new Schema<TStudent, StudentModel>(
       required: [true, 'Gender is required.'],
     },
     dateOfBirth: {
-      type: Date,
+      type: String,
     },
     email: {
       unique: true,
@@ -224,14 +225,9 @@ const studentSchema = new Schema<TStudent, StudentModel>(
       type: String,
       trim: true,
     },
-    isActive: {
-      type: String,
-      enum: {
-        values: ['active', 'blocked'],
-        message: '{VALUE} is not a valid status.',
-      },
-      default: 'active',
-      required: true,
+    admissionSemester: {
+      type: Schema.Types.ObjectId,
+      ref: 'AcademicSemester',
     },
     isDeleted: {
       type: Boolean,
@@ -248,22 +244,6 @@ const studentSchema = new Schema<TStudent, StudentModel>(
 //virtual
 studentSchema.virtual('fullname').get(function () {
   return this.name.firstName + ' ' + this.name.lastName;
-});
-
-//using pre hook
-studentSchema.pre('save', async function (next) {
-  //Hashing password
-  const user = this;
-  user.password = await bcrypt.hash(
-    user.password,
-    Number(config.bcrypt_salt_round),
-  );
-  next();
-});
-// using post hook
-studentSchema.post('save', async function (doc, next) {
-  doc.password = '';
-  next();
 });
 
 //Query Middleware
@@ -286,10 +266,5 @@ studentSchema.statics.isUserExists = async function (id: string) {
   const existingUser = await Student.findOne({ id });
   return existingUser;
 };
-
-// studentSchema.methods.isUserExists = async function (id: string) {
-//   const existingUser = await Student.findOne({ id });
-//   return existingUser;
-// };
 
 export const Student = model<TStudent, StudentModel>('Student', studentSchema);

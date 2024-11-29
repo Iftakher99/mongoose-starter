@@ -1,109 +1,59 @@
-import { Request, Response } from 'express';
 import { StudentServices } from './student.service';
-import studentValidationSchema from './student.validation';
 
-const createStudent = async (req: Request, res: Response) => {
-  try {
-    const { students: studentData } = req.body;
-    try {
-      //data validation Using zod
+import sendResponse from '../../utils/sendResponse';
+import { Status } from 'better-status-codes';
+import catchAsync from '../../utils/catchAsync';
 
-      const zodParseData = studentValidationSchema.parse(studentData);
-      const result = await StudentServices.createStudentIntoDB(zodParseData);
-      //
-
-      res.status(200).json({
-        success: true,
-        message: 'Student is Created',
-        data: result,
-      });
-    } catch (zodError: unknown) {
-      res.status(422).json({
-        success: false,
-        message: 'Validation failed',
-        data: zodError instanceof Error ? zodError.message : zodError,
-      });
-    }
-  } catch (Error: unknown) {
-    res.status(500).json({
-      success: false,
-      message: 'An error occurred while creating a student',
-      data: Error,
-    });
-  }
-};
 //Get all students
-const getAllStudent = async (req: Request, res: Response) => {
-  try {
-    const result = await StudentServices.getAllStudentsFromDB();
-    res.status(200).json({
-      success: true,
-      message: 'Students are Retrieved Successfully',
-      data: result,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Something Went Wrong',
-      data: error,
-    });
-  }
-};
+const getAllStudent = catchAsync(async (req, res) => {
+  const result = await StudentServices.getAllStudentsFromDB();
+  sendResponse(res, {
+    statusCode: Status.OK,
+    success: true,
+    message: 'Students are Retrieved Successfully',
+    data: result,
+  });
+});
 
-const getSingleStudent = async (req: Request, res: Response) => {
+const getSingleStudent = catchAsync(async (req, res) => {
   const { studentId } = req.params;
 
-  try {
-    const result = await StudentServices.getSingleStudentFromDB(studentId);
-    if (!result) {
-      res.status(404).json({
-        success: false,
-        message: 'Student not Found',
-      });
-      return;
-    }
-    res.status(200).json({
-      success: true,
-      message: 'Successfully Got a Student',
-      data: result,
-    });
-  } catch (error) {
-    res.status(500).json({
+  const result = await StudentServices.getSingleStudentFromDB(studentId);
+  if (!result) {
+    res.status(404).json({
       success: false,
-      message: 'Something went wrong getting a Student',
-      data: error,
+      message: 'Student not Found',
     });
+    return;
   }
-};
+  sendResponse(res, {
+    statusCode: Status.OK,
+    success: true,
+    message: 'Successfully Got a Student',
+    data: result,
+  });
+});
 //delete
-const deleteStudent = async (req: Request, res: Response) => {
+const deleteStudent = catchAsync(async (req, res) => {
   const { studentId } = req.params;
 
-  try {
-    const findStudent = await StudentServices.getSingleStudentFromDB(studentId);
-    if (!findStudent) {
-      res.status(404).json({
-        success: false,
-        message: 'Student not Found',
-      });
-      return;
-    }
-    const result = await StudentServices.deleteStudentFromDB(studentId);
-    res.status(200).json({
-      success: true,
-      message: 'Successfully deleted Student',
-      data: result,
-    });
-  } catch (error) {
-    res.status(500).json({
+  const findStudent = await StudentServices.getSingleStudentFromDB(studentId);
+  if (!findStudent) {
+    res.status(404).json({
       success: false,
-      message: 'Something went wrong Deleting a Student',
-      data: error,
+      message: 'Student not Found',
     });
+    return;
   }
-};
+  const result = await StudentServices.deleteStudentFromDB(studentId);
+  sendResponse(res, {
+    statusCode: Status.OK,
+    success: true,
+    message: 'Successfully deleted Student',
+    data: result,
+  });
+});
 export const StudentControllers = {
-  createStudent,
   getAllStudent,
   getSingleStudent,
   deleteStudent,
